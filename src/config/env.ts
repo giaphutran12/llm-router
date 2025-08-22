@@ -5,8 +5,7 @@ const logger = new Logger("Config:Env");
 
 // Schema for environment variables
 const envSchema = z.object({
-  NODE_ENV: z.string(),
-  NEXT_PUBLIC_APP_URL: z.string(),
+  OPENROUTER_API_KEY: z.string(),
 });
 
 // Function to validate environment variables
@@ -14,8 +13,7 @@ const validateEnv = () => {
   try {
     logger.info("Validating environment variables");
     const env = {
-      NODE_ENV: process.env.NODE_ENV,
-      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+      OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     };
     const parsed = envSchema.parse(env);
     logger.info("Environment variables validated successfully");
