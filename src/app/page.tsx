@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import type { ReactElement } from "react";
 import { Button } from "@/components/ui/button";
+import { Markdown } from "@/components/ui/markdown";
 import { Logger } from "@/utils/logger";
 import { cn } from "@/lib/utils";
 import {
@@ -335,7 +336,7 @@ function MessageBubble({
             </div>
           </div>
         )}
-        <div className="prose prose-invert max-w-none">{content}</div>
+        <Markdown content={content} />
       </div>
       {isUser && <Avatar label="You" user />}
     </div>
