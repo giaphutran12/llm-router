@@ -6,13 +6,32 @@ import type { ReactElement } from "react";
 import { Button } from "@/components/ui/button";
 import { Logger } from "@/utils/logger";
 import { cn } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type Role = "user" | "assistant";
+
+interface PerformanceMetrics {
+  throughput: string;
+  timeToFirstToken: string;
+  tokensPerSecond: string;
+  cost: string;
+  actualTimeToFirstToken: string;
+}
 
 interface Message {
   id: string;
   role: Role;
   content: string;
+  model?: string;
+  reasoning?: string;
+  performance?: PerformanceMetrics;
 }
 
 const logger = new Logger("Page:Chat");
@@ -100,14 +119,23 @@ export default function Page(): ReactElement {
       logger.info("handleSend:apiResponse", { status: response.status, json });
 
       let content: string;
-      if (Array.isArray(json)) {
-        const first = json[0] ?? {};
-        const firstSnippet = [first.title, first.description]
-          .filter(Boolean)
-          .join(" — ");
-        content = `Fetched ${json.length} items from API. ${firstSnippet ? "First: " + firstSnippet : ""}`;
-      } else if (json && typeof json === "object" && json.message) {
-        content = json.message;
+      let model: string | undefined;
+      let reasoning: string | undefined;
+      let performance: PerformanceMetrics | undefined;
+
+      if (json && typeof json === "object") {
+        if (json.model && json.reply) {
+          // New format with performance metrics
+          content = json.reply;
+          model = json.model;
+          reasoning = json.reasoning;
+          performance = json.performance;
+        } else if (json.message) {
+          // Legacy format
+          content = json.message;
+        } else {
+          content = formatAssistantReply(text);
+        }
       } else {
         content = formatAssistantReply(text);
       }
@@ -116,6 +144,9 @@ export default function Page(): ReactElement {
         id: crypto.randomUUID(),
         role: "assistant",
         content,
+        model,
+        reasoning,
+        performance,
       };
       addMessage(assistantMessage);
       logger.info("handleSend:assistantMessage", { assistantMessage });
@@ -174,7 +205,14 @@ export default function Page(): ReactElement {
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-6">
         <div className="flex-1 space-y-6 overflow-y-auto pr-1">
           {messages.map(m => (
-            <MessageBubble key={m.id} role={m.role} content={m.content} />
+            <MessageBubble
+              key={m.id}
+              role={m.role}
+              content={m.content}
+              model={m.model}
+              reasoning={m.reasoning}
+              performance={m.performance}
+            />
           ))}
           <div ref={endRef} />
         </div>
@@ -212,11 +250,21 @@ export default function Page(): ReactElement {
 interface MessageBubbleProps {
   role: Role;
   content: string;
+  model?: string;
+  reasoning?: string;
+  performance?: PerformanceMetrics;
 }
 
-function MessageBubble({ role, content }: MessageBubbleProps): ReactElement {
+function MessageBubble({
+  role,
+  content,
+  model,
+  reasoning,
+  performance,
+}: MessageBubbleProps): ReactElement {
   logger.debug("MessageBubble:render", { role });
   const isUser = role === "user";
+
   return (
     <div
       className={cn(
@@ -233,7 +281,61 @@ function MessageBubble({ role, content }: MessageBubbleProps): ReactElement {
             : "border border-white/10 bg-white/5 text-white backdrop-blur"
         )}
       >
-        {content}
+        {!isUser && model && performance && (
+          <div className="mb-4">
+            <h4 className="mb-2 text-sm font-semibold text-white/90">
+              Model Performance
+            </h4>
+            <div className="mb-3 overflow-hidden rounded-lg border border-white/10 bg-white/5">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/10 hover:bg-white/5">
+                    <TableHead className="text-white/70">Model</TableHead>
+                    <TableHead className="text-white/70">Throughput</TableHead>
+                    <TableHead className="text-white/70">
+                      Time to First Token
+                    </TableHead>
+                    <TableHead className="text-white/70">
+                      Tokens/Second
+                    </TableHead>
+                    <TableHead className="text-white/70">Cost</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow className="border-white/10 hover:bg-white/5">
+                    <TableCell className="font-medium text-white/90">
+                      {model}
+                    </TableCell>
+                    <TableCell className="text-white/80">
+                      {performance.throughput}
+                    </TableCell>
+                    <TableCell className="text-white/80">
+                      {performance.actualTimeToFirstToken}
+                    </TableCell>
+                    <TableCell className="text-white/80">
+                      {performance.tokensPerSecond}
+                    </TableCell>
+                    <TableCell className="text-white/80">
+                      {performance.cost}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+            {reasoning && (
+              <div className="mb-3 rounded-lg bg-blue-600/20 p-3 border border-blue-500/30">
+                <p className="text-xs text-blue-200 font-medium">Reasoning:</p>
+                <p className="text-xs text-blue-100">{reasoning}</p>
+              </div>
+            )}
+            <div className="mb-3 border-t border-white/10 pt-3">
+              <h5 className="text-sm font-semibold text-white/90 mb-2">
+                Answer:
+              </h5>
+            </div>
+          </div>
+        )}
+        <div className="prose prose-invert max-w-none">{content}</div>
       </div>
       {isUser && <Avatar label="You" user />}
     </div>

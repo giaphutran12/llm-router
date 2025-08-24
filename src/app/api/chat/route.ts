@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { Logger } from "@/utils/logger";
 import OpenAI from "openai";
 import { env } from "@/config/env";
@@ -10,16 +9,66 @@ const openai = new OpenAI({
   apiKey: env.OPENROUTER_API_KEY,
 });
 
+// Model performance data
+const modelPerformance = {
+  "openai/gpt-oss-20b:free": {
+    throughput: "162 tps",
+    timeToFirstToken: "0.52s",
+    tokensPerSecond: "162",
+    cost: "Free",
+  },
+  "anthropic/claude-sonnet-4": {
+    throughput: "120 tps",
+    timeToFirstToken: "1.2s",
+    tokensPerSecond: "120",
+    cost: "$3/M input, $15/M output",
+  },
+  "openai/gpt-5-mini": {
+    throughput: "150 tps",
+    timeToFirstToken: "0.8s",
+    tokensPerSecond: "150",
+    cost: "$0.25/M input, $2/M output",
+  },
+};
+
 export async function POST(req: Request) {
   const { message } = await req.json();
-  const model = await llmRouter(message);
+  const startTime = Date.now();
+
+  const modelSelection = await llmRouter(message);
+  const model = modelSelection.model;
+  const reasoning = modelSelection.reasoning;
+
+  logger.info("Model selected", { model, reasoning });
+
   const response = await openai.chat.completions.create({
     model: model,
     messages: [{ role: "user", content: message }],
   });
+
+  const endTime = Date.now();
+  const actualTimeToFirstToken = endTime - startTime;
+
   const reply = response.choices[0].message.content;
+  const performance = modelPerformance[
+    model as keyof typeof modelPerformance
+  ] || {
+    throughput: "N/A",
+    timeToFirstToken: "N/A",
+    tokensPerSecond: "N/A",
+    cost: "N/A",
+  };
+
   return new Response(
-    JSON.stringify({ message: ` Model: ${model} \n\n\n Reply: ${reply}` })
+    JSON.stringify({
+      model,
+      reasoning,
+      performance: {
+        ...performance,
+        actualTimeToFirstToken: `${actualTimeToFirstToken}ms`,
+      },
+      reply,
+    })
   );
 }
 
@@ -59,7 +108,7 @@ Analyze the message carefully and respond with ONLY a JSON object in this exact 
 
 Choose the model name exactly as written above (e.g., "openai/gpt-oss-20b:free", "anthropic/claude-sonnet-4", "openai/gpt-5-mini")`;
 
-  console.log(routingPrompt);
+  logger.info("Routing prompt", { routingPrompt });
   const response = await openai.chat.completions.create({
     model: "google/gemini-2.5-flash-lite",
     messages: [{ role: "user", content: routingPrompt }],
@@ -70,9 +119,24 @@ Choose the model name exactly as written above (e.g., "openai/gpt-oss-20b:free",
 
   const responseContent = response.choices[0].message.content;
   if (!responseContent) {
-    return "openai/gpt-oss-20b:free";
+    return {
+      model: "openai/gpt-oss-20b:free",
+      reasoning: "Default fallback model for simple queries",
+    };
   }
 
-  const parsedResponse = JSON.parse(responseContent);
-  return parsedResponse.model || "openai/gpt-oss-20b:free";
+  try {
+    const parsedResponse = JSON.parse(responseContent);
+    return {
+      model: parsedResponse.model || "openai/gpt-oss-20b:free",
+      reasoning:
+        parsedResponse.reasoning || "Default fallback model for simple queries",
+    };
+  } catch (error) {
+    logger.error("Failed to parse routing response", error);
+    return {
+      model: "openai/gpt-oss-20b:free",
+      reasoning: "Error in model selection, using default fallback",
+    };
+  }
 }
