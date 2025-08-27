@@ -1,0 +1,31 @@
+<!-- Edward's LLM Router - Minimal Globe Logo with Orbits
+     - Optimized for favicon/tab usage: small, clear, minimalist
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-labelledby="title desc">
+  <title id="title">Edward's LLM Router logo</title>
+  <desc id="desc">Minimalist globe with orbiting routing lines.</desc>
+
+  <!-- Background -->
+  <rect width="200" height="200" rx="28" fill="url(#grad)" />
+
+  <!-- Gradient definition -->
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#000000" />
+      <stop offset="100%" stop-color="#434343" />
+    </linearGradient>
+  </defs>
+
+  <!-- Globe circle -->
+  <circle cx="100" cy="100" r="48" stroke="#ffffff" stroke-width="6" fill="none" />
+
+  <!-- Orbit lines -->
+  <ellipse cx="100" cy="100" rx="65" ry="25" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.9" />
+  <ellipse cx="100" cy="100" rx="25" ry="65" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.9" />
+
+  <!-- Small routing nodes -->
+  <circle cx="165" cy="100" r="6" fill="#ffffff" />
+  <circle cx="35" cy="100" r="6" fill="#ffffff" />
+  <circle cx="100" cy="35" r="6" fill="#ffffff" />
+  <circle cx="100" cy="165" r="6" fill="#ffffff" />
+</svg>

@@ -177,9 +177,16 @@ export default function Page(): ReactElement {
     <div className="relative flex min-h-dvh flex-col bg-gradient-to-b from-black via-[#0b1a36] to-black text-white">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-transparent px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/5">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between">
-          <h1 className="text-base font-semibold tracking-tight text-white/90">
-            Chat
-          </h1>
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.svg"
+              alt="Edward's LLM Router"
+              className="h-8 w-8"
+            />
+            <h1 className="text-base font-semibold tracking-tight text-white/90">
+              Edward's LLM Router
+            </h1>
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
