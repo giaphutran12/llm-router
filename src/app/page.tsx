@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/ui/markdown";
 import { Logger } from "@/utils/logger";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import {
   Table,
   TableBody,
@@ -178,13 +179,15 @@ export default function Page(): ReactElement {
       <header className="sticky top-0 z-20 border-b border-white/10 bg-transparent px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/5">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between">
           <div className="flex items-center gap-3">
-            <img
+            <Image
               src="/logo.svg"
               alt="Edward's LLM Router"
+              width={32}
+              height={32}
               className="h-8 w-8"
             />
             <h1 className="text-base font-semibold tracking-tight text-white/90">
-              Edward's LLM Router
+              Edward&apos;s LLM Router
             </h1>
           </div>
           <div className="flex items-center gap-2">

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Edward&apos;s LLM Router",
+  title: "Edward's LLM Router",
   description:
     "Save money and time by routing your prompts to the best-fit model.",
   icons: {
