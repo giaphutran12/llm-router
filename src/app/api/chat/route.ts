@@ -1,6 +1,7 @@
 import { Logger } from "@/utils/logger";
 import OpenAI from "openai";
 import { env } from "@/config/env";
+import { cleanModelResponse } from "@/lib/utils";
 
 const logger = new Logger("API:Chat");
 
@@ -49,7 +50,75 @@ export async function POST(req: Request) {
   const endTime = Date.now();
   const actualTimeToFirstToken = endTime - startTime;
 
-  const reply = response.choices[0].message.content;
+  const rawReply = response.choices[0].message.content;
+  let reply = rawReply || "";
+
+  // Only clean responses from GPT OSS 20B (the model with formatting issues)
+  if (model === "openai/gpt-oss-20b:free") {
+    reply = cleanModelResponse(rawReply || "");
+
+    // Log if response was cleaned
+    if (rawReply !== reply) {
+      logger.info("Response cleaned", {
+        model,
+        originalLength: rawReply?.length || 0,
+        cleanedLength: reply.length,
+        wasCleaned: true,
+      });
+    }
+  }
+
+  // Fallback: If response still contains artifacts, try additional cleaning
+  // Only for GPT OSS 20B (the model with formatting issues)
+  if (
+    model === "openai/gpt-oss-20b:free" &&
+    reply &&
+    (reply.includes("analysis") || reply.includes("assistantfinal"))
+  ) {
+    let fallbackReply = reply;
+
+    // Find the actual answer part
+    const answerPatterns = [
+      "There are",
+      "The answer is",
+      "Answer:",
+      "Final answer:",
+    ];
+    for (const pattern of answerPatterns) {
+      const index = reply.indexOf(pattern);
+      if (index !== -1) {
+        fallbackReply = reply.substring(index);
+        break;
+      }
+    }
+
+    // Clean up remaining artifacts
+    fallbackReply = fallbackReply
+      .replace(/analysis|assistantfinal|user\s+wrote|they\s+are\s+asking/gi, "")
+      .trim();
+
+    if (fallbackReply.length > 10) {
+      reply = fallbackReply;
+      logger.info("Fallback cleaning applied", {
+        model,
+        fallbackLength: fallbackReply.length,
+      });
+    }
+  }
+
+  // Final quality check - if response still has artifacts, log warning
+  // Only for GPT OSS 20B (the model with formatting issues)
+  if (
+    model === "openai/gpt-oss-20b:free" &&
+    reply &&
+    (reply.includes("analysis") || reply.includes("assistantfinal"))
+  ) {
+    logger.warn("Response still contains artifacts after cleaning", {
+      model,
+      response: reply.substring(0, 100) + "...",
+    });
+  }
+
   const performance = modelPerformance[
     model as keyof typeof modelPerformance
   ] || {
@@ -77,29 +146,27 @@ async function llmRouter(message: string) {
 
 Available Models:
 1. openai/gpt-oss-20b:free
-   - Best for: Simple conversations, basic Q&A, general chat
+   - Best for: Simple greetings, basic questions, casual conversation
    - Strengths: Free, fast (0.52s latency), high throughput (162 tps)
-   - Limitations: Basic reasoning, limited coding capabilities
+   - Limitations: May produce training artifacts, basic reasoning, limited coding capabilities
    - Use when: User asks simple questions, wants casual conversation, or needs quick responses
 
 2. anthropic/claude-sonnet-4
    - Best for: Complex coding tasks, software development, technical analysis
-   - Strengths: Excellent coding abilities, SWE-bench 72.7%, 200k context
+   - Strengths: Excellent coding abilities, SWE-bench 72.7%, 200k context, clean responses
    - Cost: $3/M input, $15/M output tokens
-   - Use when: User needs code generation, debugging, software architecture, or complex technical work
+   - Use when: User needs code generation, debugging, software architecture, or when clean formatting is important
 
 3. openai/gpt-5-mini
    - Best for: Complex reasoning, analysis, problem-solving
-   - Strengths: Advanced reasoning, 400k context, good instruction following
+   - Strengths: Advanced reasoning, 400k context, good instruction following, clean responses
    - Cost: $0.25/M input, $2/M output tokens
    - Use when: User needs logical analysis, mathematical reasoning, strategic thinking, or complex problem-solving
 
 Routing Rules:
-- Choose gpt-oss-20b ONLY for: Simple greetings, basic questions, casual conversation, or when no specific technical/cognitive demands exist
+- Choose gpt-oss-20b for: Simple greetings, basic questions, casual conversation, or when no specific technical/cognitive demands exist
 - Choose claude-sonnet-4 for: Any coding-related tasks, software development, technical implementation, debugging, or when code quality is important
 - Choose gpt-5-mini for: Complex reasoning, analysis, problem-solving, mathematical thinking, or when deep cognitive processing is required
-- If multiple criteria apply, prioritize: Coding > Reasoning > Simple
-
 User Message: "${message}"
 
 Analyze the message carefully and respond with ONLY a JSON object in this exact format:
